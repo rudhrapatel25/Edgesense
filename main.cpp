@@ -11,6 +11,10 @@ Adafruit_SSD1306 display(SCREEN_WDH, SCREEN_HGT, &Wire, -1); //OLED object
 #define DHTTYPE DHT22
 DHT dht(DHTPIN, DHTTYPE); //DHT22 object
 
+#define LDR_PIN 34
+int lightValue = 0;
+
+
 float temp = 0;
 float humidity = 0;
 
@@ -38,8 +42,21 @@ void updateOLED(){
 
   display.setCursor(0,50);
   display.print("Light: ");
+  display.print(getLightStatus(lightValue));
 
   display.display();
+}
+
+const char* getLightStatus(int value) {
+  if (value > 3000) {
+    return "Dark";
+  } 
+  else if (value > 1000) {
+    return "Normal";
+  } 
+  else {
+    return "Bright";
+  }
 }
 
 void setup() {
@@ -52,23 +69,34 @@ void setup() {
     while(true);
   }
 
+  pinMode(LDR_PIN, INPUT);
+
   delay(2000);
 }
 
 void loop() {
-
   float newTemp = dht.readTemperature();
-  float newHumidity = dht.readHumidity(); //Temp and Humidity are not always whole numbers
-  
-  if(isnan(newTemp) || isnan(newHumidity)){
+  float newHumidity = dht.readHumidity();
+
+  lightValue = analogRead(LDR_PIN);
+
+  if (isnan(newTemp) || isnan(newHumidity)) {
     Serial.println("DHT22 reading failed");
   } else {
-
     temp = newTemp;
     humidity = newHumidity;
-    
+
+    Serial.print("Temperature: ");
+    Serial.println(temp);
+
+    Serial.print("Humidity: ");
+    Serial.println(humidity);
+
+    Serial.print("Light ADC: ");
+    Serial.println(lightValue);
+
     updateOLED();
   }
 
-  delay(2000);
+  delay(5000);
 }
