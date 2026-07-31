@@ -3,6 +3,14 @@
 #include <Adafruit_SSD1306.h>
 #include <DHT.h>
 
+enum LightLevel {
+  DARK, //(0)
+  NORMAL, //(1)
+  BRIGHT  //(2)
+};
+
+LightLevel lightStatus = NORMAL;
+
 #define SCREEN_WDH 128
 #define SCREEN_HGT 64
 Adafruit_SSD1306 display(SCREEN_WDH, SCREEN_HGT, &Wire, -1); //OLED object
@@ -14,9 +22,10 @@ DHT dht(DHTPIN, DHTTYPE); //DHT22 object
 #define LDR_PIN 34
 int lightValue = 0;
 
-
 float temp = 0;
 float humidity = 0;
+
+#define LED_PIN 18
 
 void updateOLED(){
   display.clearDisplay();
@@ -42,25 +51,56 @@ void updateOLED(){
 
   display.setCursor(0,50);
   display.print("Light: ");
-  display.print(getLightStatus(lightValue));
+  switch(lightStatus){
+    case DARK: 
+      display.print("Dark");
+      break;
+
+    case NORMAL:
+      display.print("Normal");
+      break;
+
+    case BRIGHT:
+      display.print("Bright");
+      break;
+  }
 
   display.display();
 }
 
-const char* getLightStatus(int value) {
-  if (value > 3000) {
-    return "Dark";
+void updateLED() {
+
+  switch (lightStatus){
+    case BRIGHT: 
+      digitalWrite(LED_PIN, LOW);
+      break;
+  
+    case NORMAL:
+      digitalWrite(LED_PIN, HIGH);
+      break;
+
+    case DARK: 
+      digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+      break;
+  }
+}
+
+void updateLightStatus(){
+  if(lightValue > 3000){
+    lightStatus = DARK;
   } 
-  else if (value > 1000) {
-    return "Normal";
+  else if (lightValue > 1000){
+    lightStatus = NORMAL;
   } 
   else {
-    return "Bright";
+    lightStatus = BRIGHT;
   }
+
 }
 
 void setup() {
   Serial.begin(115200);
+
 
   dht.begin();
   
@@ -70,6 +110,7 @@ void setup() {
   }
 
   pinMode(LDR_PIN, INPUT);
+  pinMode(LED_PIN, OUTPUT);
 
   delay(2000);
 }
@@ -80,9 +121,12 @@ void loop() {
 
   lightValue = analogRead(LDR_PIN);
 
+  updateLightStatus();
+
   if (isnan(newTemp) || isnan(newHumidity)) {
     Serial.println("DHT22 reading failed");
-  } else {
+  } 
+  else {
     temp = newTemp;
     humidity = newHumidity;
 
@@ -96,7 +140,9 @@ void loop() {
     Serial.println(lightValue);
 
     updateOLED();
+    updateLED();
+
   }
 
-  delay(5000);
+  delay(1000);
 }
