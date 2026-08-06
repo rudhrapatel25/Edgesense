@@ -6,6 +6,9 @@
 #define STEP_PIN_RIGHT 21
 #define DIR_PIN_RIGHT 22
 
+#define TRIG_PIN 4
+#define ECHO_PIN 5
+
 const int STEP_DELAY_US = 500;
 
 // Set direction for both motors
@@ -62,6 +65,28 @@ void turnRight(int steps)
   moveBothMotors(steps);
 }
 
+float getDistance()
+{
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+
+  digitalWrite(TRIG_PIN, LOW);
+
+  unsigned long duration = pulseIn(ECHO_PIN, HIGH, 30000);
+
+  if (duration == 0)
+  {
+    return 999.0;
+  }
+
+  float distance = (duration * 0.0343f) / 2.0f;
+
+  return distance;
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -72,20 +97,19 @@ void setup()
   pinMode(STEP_PIN_RIGHT, OUTPUT);
   pinMode(DIR_PIN_RIGHT, OUTPUT);
 
-  Serial.println("WarehouseBot movement test");
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
 
-  moveForward(200);
-  delay(1000);
-
-  moveBackward(200);
-  delay(1000);
-
-  turnLeft(100);
-  delay(1000);
-
-  turnRight(100);
+  Serial.println("WarehouseBot distance sensor test");
 }
 
 void loop()
 {
+  float distance = getDistance();
+
+  Serial.print("Distance: ");
+  Serial.print(distance);
+  Serial.println(" cm");
+
+  delay(500);
 }
