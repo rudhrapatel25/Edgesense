@@ -1,5 +1,15 @@
 #include <Arduino.h>
 
+enum RobotState {
+  IDLE,
+  MOVING_FORWARD,
+  TURNING_LEFT,
+  TURNING_RIGHT,
+  STOPPED
+};
+
+RobotState robotState = IDLE;
+
 #define STEP_PIN_LEFT 18
 #define DIR_PIN_LEFT 19
 
@@ -9,17 +19,15 @@
 #define TRIG_PIN 4
 #define ECHO_PIN 5
 
-const int STEP_DELAY_US = 500;
 const float SAFE_DISTANCE = 20.0;
+const int STEP_DELAY_US = 500;
 
-// Set direction for both motors
 void setMotorDirections(bool leftDirection, bool rightDirection)
 {
   digitalWrite(DIR_PIN_LEFT, leftDirection);
   digitalWrite(DIR_PIN_RIGHT, rightDirection);
 }
 
-// Move both motors exactly one step
 void stepBothMotorsOnce()
 {
   digitalWrite(STEP_PIN_LEFT, HIGH);
@@ -33,10 +41,9 @@ void stepBothMotorsOnce()
   delayMicroseconds(STEP_DELAY_US);
 }
 
-// Move both motors for a specific number of steps
 void moveBothMotors(int steps)
 {
-  for (int i = 0; i < steps; i++)
+  for(int i = 0; i < steps; i++)
   {
     stepBothMotorsOnce();
   }
@@ -48,27 +55,10 @@ void moveForward(int steps)
   moveBothMotors(steps);
 }
 
-void moveBackward(int steps)
-{
-  setMotorDirections(LOW, HIGH);
-  moveBothMotors(steps);
-}
-
 void turnLeft(int steps)
 {
   setMotorDirections(LOW, LOW);
   moveBothMotors(steps);
-}
-
-void turnRight(int steps)
-{
-  setMotorDirections(HIGH, HIGH);
-  moveBothMotors(steps);
-}
-
-void stopRobot()
-{
-  // The A4988 stops moving when STEP pulses stop.
 }
 
 float getDistance()
@@ -83,12 +73,43 @@ float getDistance()
 
   unsigned long duration = pulseIn(ECHO_PIN, HIGH, 30000);
 
-  if (duration == 0)
-  {
-    return 999.0;
-  }
+  if(duration == 0)
+    return 999;
 
-  return (duration * 0.0343f) / 2.0f;
+  return (duration * 0.0343) / 2.0;
+}
+
+void updateState(float distance)
+{
+  if(distance < SAFE_DISTANCE)
+  {
+    robotState = TURNING_LEFT;
+  }
+  else
+  {
+    robotState = MOVING_FORWARD;
+  }
+}
+
+void executeState()
+{
+  switch(robotState)
+  {
+    case MOVING_FORWARD:
+      moveForward(20);
+      break;
+
+    case TURNING_LEFT:
+      turnLeft(80);
+      break;
+
+    case STOPPED:
+    case IDLE:
+      break;
+
+    case TURNING_RIGHT:
+      break;
+  }
 }
 
 void setup()
@@ -103,8 +124,6 @@ void setup()
 
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
-
-  Serial.println("WarehouseBot obstacle avoidance started");
 }
 
 void loop()
@@ -112,22 +131,9 @@ void loop()
   float distance = getDistance();
 
   Serial.print("Distance: ");
-  Serial.print(distance);
-  Serial.println(" cm");
+  Serial.println(distance);
 
-  if (distance < SAFE_DISTANCE)
-  {
-    Serial.println("Obstacle detected - turning left");
+  updateState(distance);
 
-    stopRobot();
-    delay(200);
-
-    turnLeft(100);
-  }
-  else
-  {
-    Serial.println("Path clear - moving forward");
-
-    moveForward(20);
-  }
+  executeState();
 }
