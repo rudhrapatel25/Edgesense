@@ -1,4 +1,7 @@
 #include <Arduino.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
 enum RobotState {
   idle,
@@ -18,6 +21,19 @@ volatile RobotState robotState = idle;
 
 #define TRIG_PIN 4
 #define ECHO_PIN 5
+
+#define screenwidth 128
+#define screenheight 64
+
+#define oled_sda 23
+#define oled_scl 25
+
+Adafruit_SSD1306 display(
+  screenwidth,
+  screenheight,
+  &Wire,
+  -1
+);
 
 const float safeDistance = 20.0;
 
@@ -71,6 +87,31 @@ float getDistance()
   float distance = (duration * 0.0343) / 2;
 
   return distance;
+}
+
+
+// Returns text for the current robot state
+const char* getRobotStateName()
+{
+  switch (robotState)
+  {
+    case idle:
+      return "IDLE";
+
+    case movingForward:
+      return "FORWARD";
+
+    case turningLeft:
+      return "TURN LEFT";
+
+    case turningRight:
+      return "TURN RIGHT";
+
+    case stopped:
+      return "STOPPED";
+  }
+
+  return "UNKNOWN";
 }
 
 
@@ -149,11 +190,47 @@ void motorTask(void* parameter)
 
       case stopped:
       case idle:
-        // No STEP pulse means the motors stay stopped
         break;
     }
 
     vTaskDelay(pdMS_TO_TICKS(1));
+  }
+}
+
+
+// Display task shows the current robot information
+void displayTask(void* parameter)
+{
+  while (true)
+  {
+    display.clearDisplay();
+    display.setTextColor(SSD1306_WHITE);
+
+    display.setTextSize(2);
+    display.setCursor(4, 0);
+    display.println("Warehouse");
+
+    display.setTextSize(1);
+    display.setCursor(42, 16);
+    display.println("Bot");
+
+    display.drawLine(0, 27, 127, 27, SSD1306_WHITE);
+
+    display.setCursor(0, 33);
+    display.print("Distance: ");
+    display.print(latestDistance, 1);
+    display.println(" cm");
+
+    display.setCursor(0, 44);
+    display.print("State: ");
+    display.println(getRobotStateName());
+
+    display.setCursor(0, 56);
+    display.print("RTOS: Running");
+
+    display.display();
+
+    vTaskDelay(pdMS_TO_TICKS(200));
   }
 }
 
@@ -171,11 +248,23 @@ void setup()
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
 
+  // Start the OLED before creating displayTask
+  Wire.begin(oled_sda, oled_scl);
 
-  // Sensor Task
-  // HC-SR04
-  //    ↓
-  // latestDistance
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
+  {
+    Serial.println("OLED failed");
+
+    while (true)
+    {
+      delay(1000);
+    }
+  }
+
+  display.clearDisplay();
+  display.display();
+
+
   xTaskCreatePinnedToCore(
     sensorTask,
     "Sensor Task",
@@ -187,10 +276,6 @@ void setup()
   );
 
 
-  // Navigation Task
-  // latestDistance
-  //    ↓
-  // robotState
   xTaskCreatePinnedToCore(
     navigationTask,
     "Navigation Task",
@@ -202,10 +287,6 @@ void setup()
   );
 
 
-  // Motor Task
-  // robotState
-  //    ↓
-  // motors
   xTaskCreatePinnedToCore(
     motorTask,
     "Motor Task",
@@ -216,12 +297,22 @@ void setup()
     1
   );
 
-  Serial.println("WarehouseBot RTOS tasks started");
+
+  xTaskCreatePinnedToCore(
+    displayTask,
+    "Display Task",
+    4096,
+    NULL,
+    1,
+    NULL,
+    0
+  );
+
+  Serial.println("WarehouseBot display task started");
 }
 
 
 void loop()
 {
-  // The FreeRTOS tasks handle everything now
   delay(1000);
 }
