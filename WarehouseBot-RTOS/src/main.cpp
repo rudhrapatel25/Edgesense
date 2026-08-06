@@ -10,6 +10,7 @@
 #define ECHO_PIN 5
 
 const int STEP_DELAY_US = 500;
+const float SAFE_DISTANCE = 20.0;
 
 // Set direction for both motors
 void setMotorDirections(bool leftDirection, bool rightDirection)
@@ -65,6 +66,11 @@ void turnRight(int steps)
   moveBothMotors(steps);
 }
 
+void stopRobot()
+{
+  // The A4988 stops moving when STEP pulses stop.
+}
+
 float getDistance()
 {
   digitalWrite(TRIG_PIN, LOW);
@@ -82,9 +88,7 @@ float getDistance()
     return 999.0;
   }
 
-  float distance = (duration * 0.0343f) / 2.0f;
-
-  return distance;
+  return (duration * 0.0343f) / 2.0f;
 }
 
 void setup()
@@ -100,7 +104,7 @@ void setup()
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
 
-  Serial.println("WarehouseBot distance sensor test");
+  Serial.println("WarehouseBot obstacle avoidance started");
 }
 
 void loop()
@@ -111,5 +115,19 @@ void loop()
   Serial.print(distance);
   Serial.println(" cm");
 
-  delay(500);
+  if (distance < SAFE_DISTANCE)
+  {
+    Serial.println("Obstacle detected - turning left");
+
+    stopRobot();
+    delay(200);
+
+    turnLeft(100);
+  }
+  else
+  {
+    Serial.println("Path clear - moving forward");
+
+    moveForward(20);
+  }
 }
