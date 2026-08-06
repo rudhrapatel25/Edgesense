@@ -8,7 +8,7 @@ enum RobotState {
   stopped
 };
 
-RobotState robotState = idle;
+volatile RobotState robotState = idle;
 
 #define STEP_PIN_LEFT 18
 #define DIR_PIN_LEFT 19
@@ -23,71 +23,44 @@ const float safeDistance = 20.0;
 
 volatile float latestDistance = 999.0;
 
-// Helper function
-void stepMotor(int stepPin)
-{
-  // One HIGH-to-LOW pulse moves the motor one step
-  digitalWrite(stepPin, HIGH);
-  delayMicroseconds(500);
+bool turnLeftNext = true;
+bool obstacleHandled = false;
 
-  digitalWrite(stepPin, LOW);
-  delayMicroseconds(500);
-}
 
-// Choose which direction each motor rotates
+// Changes the direction of both motors
 void setMotorDirections(bool leftDirection, bool rightDirection)
 {
   digitalWrite(DIR_PIN_LEFT, leftDirection);
   digitalWrite(DIR_PIN_RIGHT, rightDirection);
 }
 
-// Move both motors together
-void moveBothMotors(int steps)
+
+// Sends one step pulse to both motors
+void stepBothMotorsOnce()
 {
-  for (int i = 0; i < steps; i++)
-  {
-    stepMotor(STEP_PIN_LEFT);
-    stepMotor(STEP_PIN_RIGHT);
-  }
+  digitalWrite(STEP_PIN_LEFT, HIGH);
+  digitalWrite(STEP_PIN_RIGHT, HIGH);
+
+  delayMicroseconds(500);
+
+  digitalWrite(STEP_PIN_LEFT, LOW);
+  digitalWrite(STEP_PIN_RIGHT, LOW);
+
+  delayMicroseconds(500);
 }
 
-void moveForward(int steps)
-{
-  setMotorDirections(HIGH, LOW);
-  moveBothMotors(steps);
-}
 
-void moveBackward(int steps)
-{
-  setMotorDirections(LOW, HIGH);
-  moveBothMotors(steps);
-}
-
-void turnLeft(int steps)
-{
-  setMotorDirections(LOW, LOW);
-  moveBothMotors(steps);
-}
-
-void turnRight(int steps)
-{
-  setMotorDirections(HIGH, HIGH);
-  moveBothMotors(steps);
-}
-
+// Reads the ultrasonic sensor
 float getDistance()
 {
-  // Reset trigger pin
   digitalWrite(TRIG_PIN, LOW);
   delayMicroseconds(2);
 
-  // Send 10 microsecond trigger pulse
   digitalWrite(TRIG_PIN, HIGH);
   delayMicroseconds(10);
 
   digitalWrite(TRIG_PIN, LOW);
 
-  // Measure how long the echo pin stays HIGH
   unsigned long duration = pulseIn(ECHO_PIN, HIGH, 30000);
 
   if (duration == 0)
@@ -95,50 +68,13 @@ float getDistance()
     return 999.0;
   }
 
-  // Convert round-trip time into centimeters
   float distance = (duration * 0.0343) / 2;
 
   return distance;
 }
 
-// This function decides the robot state
-void updateState()
-{
-  if (latestDistance < safeDistance)
-  {
-    robotState = turningLeft;
-  }
-  else
-  {
-    robotState = movingForward;
-  }
-}
 
-// This function performs the current state
-void executeState()
-{
-  switch (robotState)
-  {
-    case movingForward:
-      moveForward(10);
-      break;
-
-    case turningLeft:
-      turnLeft(50);
-      break;
-
-    case turningRight:
-      turnRight(50);
-      break;
-
-    case stopped:
-    case idle:
-      // No movement
-      break;
-  }
-}
-
-// FreeRTOS sensor task
+// Sensor task only reads distance
 void sensorTask(void* parameter)
 {
   while (true)
@@ -149,10 +85,78 @@ void sensorTask(void* parameter)
     Serial.print(latestDistance);
     Serial.println(" cm");
 
-    // Only this task sleeps for 200 ms
     vTaskDelay(pdMS_TO_TICKS(200));
   }
 }
+
+
+// Navigation task only decides what the robot should do
+void navigationTask(void* parameter)
+{
+  while (true)
+  {
+    if (latestDistance < safeDistance)
+    {
+      if (!obstacleHandled)
+      {
+        if (turnLeftNext)
+        {
+          robotState = turningLeft;
+          Serial.println("State: turning left");
+        }
+        else
+        {
+          robotState = turningRight;
+          Serial.println("State: turning right");
+        }
+
+        turnLeftNext = !turnLeftNext;
+        obstacleHandled = true;
+      }
+    }
+    else
+    {
+      robotState = movingForward;
+      obstacleHandled = false;
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(100));
+  }
+}
+
+
+// Motor task reads robotState and moves the motors
+void motorTask(void* parameter)
+{
+  while (true)
+  {
+    switch (robotState)
+    {
+      case movingForward:
+        setMotorDirections(HIGH, LOW);
+        stepBothMotorsOnce();
+        break;
+
+      case turningLeft:
+        setMotorDirections(LOW, LOW);
+        stepBothMotorsOnce();
+        break;
+
+      case turningRight:
+        setMotorDirections(HIGH, HIGH);
+        stepBothMotorsOnce();
+        break;
+
+      case stopped:
+      case idle:
+        // No STEP pulse means the motors stay stopped
+        break;
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+}
+
 
 void setup()
 {
@@ -167,29 +171,57 @@ void setup()
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
 
-  // Sensor task:
+
+  // Sensor Task
   // HC-SR04
   //    ↓
   // latestDistance
   xTaskCreatePinnedToCore(
-    sensorTask,       // Function to run
-    "Sensor Task",    // Task name
-    2048,             // Stack memory
-    NULL,             // No parameters
-    1,                // Priority
-    NULL,             // No task handle
-    0                 // Core 0
+    sensorTask,
+    "Sensor Task",
+    2048,
+    NULL,
+    1,
+    NULL,
+    0
   );
 
-  Serial.println("Sensor task started");
+
+  // Navigation Task
+  // latestDistance
+  //    ↓
+  // robotState
+  xTaskCreatePinnedToCore(
+    navigationTask,
+    "Navigation Task",
+    2048,
+    NULL,
+    2,
+    NULL,
+    1
+  );
+
+
+  // Motor Task
+  // robotState
+  //    ↓
+  // motors
+  xTaskCreatePinnedToCore(
+    motorTask,
+    "Motor Task",
+    2048,
+    NULL,
+    3,
+    NULL,
+    1
+  );
+
+  Serial.println("WarehouseBot RTOS tasks started");
 }
+
 
 void loop()
 {
-  // Sensor task updates latestDistance
-  // Main loop decides and controls motors
-  updateState();
-  executeState();
-
-  delay(20);
+  // The FreeRTOS tasks handle everything now
+  delay(1000);
 }
