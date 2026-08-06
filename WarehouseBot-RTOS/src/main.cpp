@@ -8,12 +8,17 @@
 
 const int STEP_DELAY_US = 500;
 
-void stepMotor(int stepPin)
+// Move BOTH motors exactly one step
+void stepBothMotorsOnce()
 {
-  digitalWrite(stepPin, HIGH);
+  digitalWrite(STEP_PIN_LEFT, HIGH);
+  digitalWrite(STEP_PIN_RIGHT, HIGH);
+
   delayMicroseconds(STEP_DELAY_US);
 
-  digitalWrite(stepPin, LOW);
+  digitalWrite(STEP_PIN_LEFT, LOW);
+  digitalWrite(STEP_PIN_RIGHT, LOW);
+
   delayMicroseconds(STEP_DELAY_US);
 }
 
@@ -30,11 +35,10 @@ void setup()
   digitalWrite(DIR_PIN_LEFT, HIGH);
   digitalWrite(DIR_PIN_RIGHT, HIGH);
 
-  Serial.println("WarehouseBot dual motor test started");
+  Serial.println("Synchronized motor test");
 }
 
 void loop()
 {
-  stepMotor(STEP_PIN_LEFT);
-  stepMotor(STEP_PIN_RIGHT);
+  stepBothMotorsOnce();
 }
