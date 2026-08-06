@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "author": "Rudhra Patel",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-breadboard-half",
+      "id": "bb1",
+      "top": 44.1,
+      "left": -332.7,
+      "rotate": 90,
+      "attrs": {}
+    },
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": -57.6, "left": 168.04, "attrs": {} },
+    {
+      "type": "wokwi-hc-sr04",
+      "id": "ultrasonic1",
+      "top": -248.1,
+      "left": 178.3,
+      "attrs": { "distance": "14" }
+    },
+    {
+      "type": "wokwi-stepper-motor",
+      "id": "stepper1",
+      "top": -361.19,
+      "left": -28.37,
+      "attrs": { "size": "17" }
+    },
+    {
+      "type": "wokwi-stepper-motor",
+      "id": "stepper2",
+      "top": -361.19,
+      "left": 413.23,
+      "attrs": { "size": "17" }
+    },
+    { "type": "wokwi-a4988", "id": "drv1", "top": 225.6, "left": 206.4, "attrs": {} },
+    { "type": "wokwi-a4988", "id": "drv2", "top": -129.6, "left": 33.6, "attrs": {} },
+    {
+      "type": "board-ssd1306",
+      "id": "oled1",
+      "top": -352.06,
+      "left": 211.43,
+      "attrs": { "i2cAddress": "0x3c" }
+    }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "drv1:STEP", "esp:18", "violet", [ "h-67.2", "v-67.2", "h134.4", "v-172.8" ] ],
+    [ "drv1:DIR", "esp:19", "purple", [ "h-76.8", "v-96", "h153.6", "v-163.2" ] ],
+    [ "esp:GND.2", "bb1:tn.1", "black", [ "v-38.4", "h-167.96", "v-40" ] ],
+    [ "drv1:GND.1", "bb1:tn.18", "black", [ "v19.28", "h-297.55" ] ],
+    [ "esp:3V3", "bb1:tp.1", "magenta", [ "h-57.45", "v-96", "h-191.7" ] ],
+    [ "drv1:VDD", "bb1:tp.20", "magenta", [ "h19.35", "v38.48", "h-345.6", "v-164.8" ] ],
+    [ "drv1:VMOT", "bb1:tp.25", "limegreen", [ "h28.95", "v211.28" ] ],
+    [ "drv1:RESET", "drv1:SLEEP", "green", [ "h-28.8", "v9.6" ] ],
+    [ "drv1:SLEEP", "bb1:tp.16", "green", [ "h-96", "v9.6" ] ],
+    [ "drv1:MS1", "bb1:tn.17", "gold", [ "h-288", "v-107.2" ] ],
+    [ "drv1:MS2", "bb1:tn.15", "#8f4814", [ "h-220.8", "v-38.4" ] ],
+    [ "drv1:MS3", "bb1:tn.12", "orange", [ "h-220.8", "v-76.8", "h-48", "v-107.2" ] ],
+    [ "drv1:1A", "stepper2:A-", "red", [ "h19.35", "v-86.32", "h86.4", "v-355.2", "h115.2" ] ],
+    [ "drv1:1B", "stepper2:A+", "blue", [ "h38.55", "v-105.52", "h76.8", "v-336", "h105.6" ] ],
+    [ "drv1:2A", "stepper2:B+", "green", [ "h48.15", "v-95.92", "h76.8", "v-316.8", "h105.6" ] ],
+    [ "stepper2:B-", "drv1:2B", "black", [ "v38.4", "h-115.21", "v393.52" ] ],
+    [ "esp:21", "drv2:STEP", "violet", [ "h14.44", "v-115.2", "h-96", "v-28.8" ] ],
+    [ "esp:22", "drv2:DIR", "purple", [ "h24.04", "v-96", "h-86.4", "v-9.6" ] ],
+    [ "stepper1:A+", "drv2:1B", "blue", [ "v38.4", "h76.8", "v67.2" ] ],
+    [ "stepper1:A-", "drv2:1A", "red", [ "v28.8", "h96", "v67.2", "h-28.95" ] ],
+    [ "stepper1:B+", "drv2:2A", "green", [ "v19.2", "h86.4", "v67.2" ] ],
+    [ "stepper1:B-", "drv2:2B", "black", [ "v9.6", "h86.39", "v67.12" ] ],
+    [ "drv2:VDD", "bb1:tp.4", "magenta", [ "h19.35", "v48.08", "h-19.2" ] ],
+    [ "drv2:GND.1", "bb1:tn.3", "black", [ "v0.08", "h0.15", "v28.8" ] ],
+    [ "drv2:RESET", "drv2:SLEEP", "green", [ "h-28.8", "v9.6" ] ],
+    [ "drv2:SLEEP", "bb1:tp.6", "green", [ "h-86.4", "v86.4", "v65.6" ] ],
+    [ "drv2:MS3", "bb1:tn.6", "orange", [ "h-172.8", "v105.6", "h9.6" ] ],
+    [ "drv2:MS2", "bb1:tn.7", "#8f4814", [ "h-182.4", "v123.2" ] ],
+    [ "drv2:MS1", "bb1:tn.8", "gold", [ "h-192", "v9.6" ] ],
+    [ "ultrasonic1:VCC", "esp:5V", "white", [ "v38.4", "h-86.4", "v259.2" ] ],
+    [ "ultrasonic1:GND", "bb1:tn.9", "black", [ "v0", "h75.6", "v-211.2", "h-451.2", "v480" ] ],
+    [ "ultrasonic1:TRIG", "esp:4", "#8f4814", [ "v28.8", "h38", "v220.8" ] ],
+    [ "ultrasonic1:ECHO", "esp:5", "limegreen", [ "v19.2", "h37.6", "v192" ] ],
+    [ "bb1:tp.10", "oled1:VCC", "blue", [ "h-211.5", "v-497.6", "h547.05" ] ],
+    [ "oled1:GND", "bb1:tn.11", "black", [ "v-48", "h-528", "v518.4", "h0", "v9.6" ] ],
+    [ "esp:23", "oled1:SDA", "yellow", [ "h134.4", "v-364.8", "h-124.8" ] ],
+    [ "esp:25", "oled1:SCL", "cyan", [ "v0", "h-470.25", "v-451.2", "h566.4" ] ]
+  ],
+  "dependencies": {}
+}
